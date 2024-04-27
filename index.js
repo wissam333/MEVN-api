@@ -5,6 +5,7 @@ const app = express();
 app.use(express.json());
 const path = require("path");
 const cors = require("cors");
+const port = process.env.PORT || 5000;
 
 // importing routes
 const userRoute = require("./routes/user");
@@ -44,8 +45,7 @@ app.use("/api/favorite", favoriteRoute);
 app.use("/api/dashboard", dashboard);
 app.use("/api/recommendations", recommendations);
 
-
 // start server
-app.listen(5000, () => {
+app.listen(port, () => {
   console.log("server is runing on port 5000");
 });
