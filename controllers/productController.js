@@ -1,5 +1,6 @@
 // basic imports
 const Product = require("../models/Product");
+const Inventory = require("../models/Inventory");
 const LFUCache = require("../cache/cache");
 const productCache = new LFUCache(100);
 const cache = require("memory-cache");
@@ -88,11 +89,21 @@ const getProduct = async (req, res) => {
     if (cachedProduct) {
       return res.status(200).json(cachedProduct);
     }
-
+    // Fetch inventory quantity
+    const inventory = await Inventory.findOne({ productId });
     const oneProduct = await Product.findById(productId);
+
+    const getProductWithQuatity = {
+      ...oneProduct.toObject(),
+      quantity: inventory
+        ? inventory.stockQuantity - inventory.reservedQuantity
+        : 0,
+    };
+    // put in cache
     if (oneProduct) {
-      productCache.put(productId, oneProduct);
-      res.status(200).json(oneProduct);
+      productCache.put(productId, getProductWithQuatity);
+      // response
+      res.status(200).json(getProductWithQuatity);
     } else {
       res.status(404).json({ message: "Product not found" });
     }
@@ -135,8 +146,23 @@ const getProducts = async (req, res) => {
     } else {
       Products = await Product.find();
     }
-    cache.put(cacheKey, Products);
-    res.status(200).json(Products);
+
+    // Fetch inventory quantity for each product and add it to the response
+    const productsWithQuantity = await Promise.all(
+      Products.map(async (product) => {
+        const inventory = await Inventory.findOne({ productId: product._id });
+        const quantity = inventory
+          ? inventory.stockQuantity - inventory.reservedQuantity
+          : 0;
+        return {
+          ...product.toObject(),
+          quantity: quantity,
+        };
+      })
+    );
+    // Put products with quantity in cache
+    cache.put(cacheKey, productsWithQuantity);
+    res.status(200).json(productsWithQuantity);
   } catch (err) {
     res.status(500).json(err);
   }

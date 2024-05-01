@@ -16,6 +16,7 @@ const orderRoute = require("./routes/order");
 const favoriteRoute = require("./routes/favorite");
 const dashboard = require("./routes/dashboard");
 const recommendations = require("./routes/recommendations");
+const inventory = require("./routes/inventory");
 
 mongoose
   .connect("mongodb://0.0.0.0:27017/ecommerce", {})
@@ -44,6 +45,7 @@ app.use("/api/orders", orderRoute);
 app.use("/api/favorite", favoriteRoute);
 app.use("/api/dashboard", dashboard);
 app.use("/api/recommendations", recommendations);
+app.use("/api/inventory", inventory);
 
 // start server
 app.listen(port, () => {
