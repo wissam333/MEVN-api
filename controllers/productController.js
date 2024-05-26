@@ -43,18 +43,31 @@ const createProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
+    const { id } = req.params;
+    const { title, imgName } = req.body;
+
+    // Check if the updated title is unique
+    const existingProduct = await Product.findOne({ title });
+    if (existingProduct && existingProduct._id.toString() !== id) {
+      return res.status(400).json({ message: "Title must be unique" });
+    }
+
+    // Construct the image URL
+    const imgUrl = `${req.protocol}://${req.get("host")}/uploads/${imgName}`;
+
+    // Update the product with the new data
     const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: req.body,
-      },
-      { new: true } // Return the modified document rather than the original one
+      id,
+      { $set: { title, img: imgUrl, ...req.body } },
+      { new: true }
     );
+
     if (!updatedProduct) {
       return res.status(404).json({ message: "Product not found" });
     }
-    // invalidate cache
-    invalidateCache(req.params.id);
+
+    // Invalidate cache
+    invalidateCache(id);
     cache.clear();
 
     res.status(200).json(updatedProduct);
@@ -114,40 +127,32 @@ const getProduct = async (req, res) => {
 
 const getProducts = async (req, res) => {
   try {
-    const qNew = req.query.new; // get new Product (last 5 Product added)
-    const qCategory = req.query.category; // get all products in that category
-    // caching
+    const qCategory = req.query.category;
+    const page = parseInt(req.query.page) || 1; // default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize) || 10; // default to 10 items per page if not provided
+
+    const skip = (page - 1) * pageSize; // calculate number of items to skip
+
     const cacheKey = JSON.stringify(
-      "products" + req.query.new + req.query.category
+      "products" + req.query.category + page + pageSize
     );
     const cachedProducts = cache.get(cacheKey);
-    // return the cached products and ignore getting data from database
+
     if (cachedProducts) {
       return res.status(200).json(cachedProducts);
     }
 
-    let Products;
-    if (qNew && qCategory) {
-      Products = await Product.find({
-        categories: {
-          $in: [qCategory],
-        },
-      })
-        .sort({ createdAt: -1 })
-        .limit(5);
-    } else if (qNew) {
-      Products = await Product.find().sort({ createdAt: -1 }).limit(5);
-    } else if (qCategory) {
-      Products = await Product.find({
-        categories: {
-          $in: [qCategory],
-        },
-      });
-    } else {
-      Products = await Product.find();
+    let query = {};
+    if (qCategory) {
+      query = {
+        categories: { $in: [qCategory] },
+      };
     }
 
-    // Fetch inventory quantity for each product and add it to the response
+    const productsCount = await Product.countDocuments(query); // Count total products matching the query
+
+    const Products = await Product.find(query).skip(skip).limit(pageSize);
+
     const productsWithQuantity = await Promise.all(
       Products.map(async (product) => {
         const inventory = await Inventory.findOne({ productId: product._id });
@@ -160,12 +165,25 @@ const getProducts = async (req, res) => {
         };
       })
     );
-    // Put products with quantity in cache
-    cache.put(cacheKey, productsWithQuantity);
-    res.status(200).json(productsWithQuantity);
+
+    const totalPages = Math.ceil(productsCount / pageSize); // Calculate total pages
+
+    cache.put(cacheKey, {
+      products: productsWithQuantity,
+      totalPages,
+      productsCount,
+    });
+    res
+      .status(200)
+      .json({ products: productsWithQuantity, totalPages, productsCount });
   } catch (err) {
     res.status(500).json(err);
   }
+};
+
+const getProductsTemp = async (req, res) => {
+  const Products = await Product.find();
+  console.log(Products);
 };
 
 module.exports = {
@@ -174,4 +192,5 @@ module.exports = {
   deleteProduct,
   getProduct,
   getProducts,
+  getProductsTemp,
 };

@@ -23,7 +23,7 @@ const inventorySchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    location: {
+    warehouse: {
       type: String,
     },
   },

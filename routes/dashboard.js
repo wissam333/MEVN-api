@@ -7,6 +7,8 @@ const {
   getLastWeekSales,
   getDashboardStates,
   getSalesComparison,
+  getSalesDataForProduct,
+  getMonthlySalesDataForProduct
 } = require("../controllers/dashboardController");
 const { verifyTokenAndAdmin } = require("../Middleware/verifyToken");
 
@@ -23,7 +25,11 @@ router.get("/getLastMonthSales", verifyTokenAndAdmin, getLastMonthSales);
 
 router.get("/getLastWeekSales", verifyTokenAndAdmin, getLastWeekSales);
 
-router.get("/getSalesComparison", verifyTokenAndAdmin, getSalesComparison);
+router.get("/getSalesComparison", getSalesComparison);
+
+router.get("/getSalesDataForProduct/:productId", verifyTokenAndAdmin, getSalesDataForProduct);
+
+router.get("/getMonthlySalesDataForProduct/:productId", verifyTokenAndAdmin, getMonthlySalesDataForProduct);
 
 
 module.exports = router;

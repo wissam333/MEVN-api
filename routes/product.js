@@ -7,6 +7,7 @@ const {
   deleteProduct,
   getProduct,
   getProducts,
+  getProductsTemp,
 } = require("../controllers/productController");
 const uploadImg = require("../Middleware/multerMiddleware");
 
@@ -14,7 +15,7 @@ const uploadImg = require("../Middleware/multerMiddleware");
 router.post("/", uploadImg, verifyTokenAndAdmin, createProduct);
 
 // update Product
-router.put("/:id", verifyTokenAndAdmin, updateProduct);
+router.put("/:id", uploadImg, verifyTokenAndAdmin, updateProduct);
 
 // delete Product
 router.delete("/:id", verifyTokenAndAdmin, deleteProduct);
@@ -24,5 +25,8 @@ router.get("/find/:id", getProduct);
 
 // get Products
 router.get("/", getProducts);
+
+// get Products
+router.get("/getProductsTemp", getProductsTemp);
 
 module.exports = router;

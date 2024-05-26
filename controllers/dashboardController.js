@@ -196,6 +196,98 @@ const getSalesComparison = async (req, res) => {
   }
 };
 
+const getSalesDataForProduct = async (req, res) => {
+  const productId = req.params.productId;
+
+  try {
+    const query = {
+      "products.productId": productId,
+    };
+    // fetch data from the database
+    const orders = await Order.find(query);
+    const ProductFromDb = await Product.findById(productId);
+    // Calculate total revenue and total quantity sold for all, this month, and this week
+    let totalRevenueAll = 0;
+    let totalQuantitySoldAll = 0;
+    let totalRevenueMonth = 0;
+    let totalQuantitySoldMonth = 0;
+    let totalRevenueWeek = 0;
+    let totalQuantitySoldWeek = 0;
+
+    // dates
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const firstDayOfWeek = today.getDate() - today.getDay(); // Sunday
+    const lastDayOfWeek = firstDayOfWeek + 6;
+
+    orders.forEach((order) => {
+      order.products.forEach((product) => {
+        if (product.productId.toString() === productId) {
+          totalRevenueAll += ProductFromDb.price * product.quantity;
+          totalQuantitySoldAll += product.quantity;
+
+          if (order.createdAt >= firstDayOfMonth) {
+            totalRevenueMonth += ProductFromDb.price * product.quantity;
+            totalQuantitySoldMonth += product.quantity;
+          }
+
+          if (
+            order.createdAt >= new Date(today.setDate(firstDayOfWeek)) &&
+            order.createdAt <= new Date(today.setDate(lastDayOfWeek))
+          ) {
+            totalRevenueWeek += ProductFromDb.price * product.quantity;
+            totalQuantitySoldWeek += product.quantity;
+          }
+        }
+      });
+    });
+
+    const salesData = {
+      totalRevenueAll,
+      totalQuantitySoldAll,
+      totalRevenueMonth,
+      totalQuantitySoldMonth,
+      totalRevenueWeek,
+      totalQuantitySoldWeek,
+    };
+
+    res.status(200).json(salesData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getMonthlySalesDataForProduct = async (req, res) => {
+  const productId = req.params.productId;
+  try {
+    const query = {
+      "products.productId": productId,
+    };
+    const orders = await Order.find(query);
+    // object to store sales data for each month of the year
+    const monthlySalesData = {};
+
+    for (let i = 1; i <= 12; i++) {
+      monthlySalesData[i] = 0;
+    }
+
+    orders.forEach((order) => {
+      order.products.forEach((product) => {
+        if (product.productId.toString() === productId) {
+          const month = new Date(order.createdAt).getMonth() + 1;
+          monthlySalesData[month] += product.quantity;
+        }
+      });
+    });
+
+    res.status(200).json(monthlySalesData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   getDashboardStates,
   getMonthlyIncome,
@@ -204,4 +296,6 @@ module.exports = {
   getLastWeekSales,
   getUserStates,
   getSalesComparison,
+  getSalesDataForProduct,
+  getMonthlySalesDataForProduct,
 };
