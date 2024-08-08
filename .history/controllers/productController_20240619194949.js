@@ -128,14 +128,13 @@ const getProduct = async (req, res) => {
 const getProducts = async (req, res) => {
   try {
     const qCategory = req.query.category;
-    const page = parseInt(req.query.page) || 1; // default to page 1 if not provided
-    const pageSize = parseInt(req.query.pageSize) || 10; // default to 10 items per page if not provided
-    const latest = req.query.latest; // check if latest is set
+    const page = parseInt(req.query.page); // default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize); // default to 10 items per page if not provided
 
     const skip = (page - 1) * pageSize; // calculate number of items to skip
 
     const cacheKey = JSON.stringify(
-      "products" + req.query.category + page + pageSize + latest
+      "products" + req.query.category + page + pageSize
     );
     const cachedProducts = cache.get(cacheKey);
 
@@ -150,15 +149,9 @@ const getProducts = async (req, res) => {
       };
     }
 
-    let productsQuery = Product.find(query);
+    const productsCount = await Product.countDocuments(query); // Count total products matching the query
 
-    if (latest) {
-      productsQuery = productsQuery.sort({ createdAt: -1 }).limit(5);
-    } else {
-      productsQuery = productsQuery.skip(skip).limit(pageSize);
-    }
-
-    const Products = await productsQuery;
+    const Products = await Product.find(query).skip(skip).limit(pageSize);
 
     const productsWithQuantity = await Promise.all(
       Products.map(async (product) => {
@@ -173,15 +166,13 @@ const getProducts = async (req, res) => {
       })
     );
 
-    const productsCount = await Product.countDocuments(query); // Count total products matching the query
-    const totalPages = latest ? 1 : Math.ceil(productsCount / pageSize); // If latest, only 1 page
+    const totalPages = Math.ceil(productsCount / pageSize); // Calculate total pages
 
     cache.put(cacheKey, {
       products: productsWithQuantity,
       totalPages,
       productsCount,
     });
-
     res
       .status(200)
       .json({ products: productsWithQuantity, totalPages, productsCount });
@@ -189,7 +180,6 @@ const getProducts = async (req, res) => {
     res.status(500).json(err);
   }
 };
-
 
 const getProductsTemp = async (req, res) => {
   try {
