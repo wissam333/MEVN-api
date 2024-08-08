@@ -147,8 +147,36 @@ const deleteInventory = async (req, res) => {
 
 const getAllInventories = async (req, res) => {
   try {
+    // Fetch all inventories
     const inventories = await Inventory.find();
-    res.status(200).json(inventories);
+
+    // Extract unique product IDs from the inventories
+    const productIds = [
+      ...new Set(inventories.map((inventory) => inventory.productId)),
+    ];
+
+    // Fetch the corresponding products
+    const products = await Product.find({ _id: { $in: productIds } });
+
+    // Create a map of productId to product details for quick lookup
+    const productMap = products.reduce((map, product) => {
+      map[product._id] = {
+        title: product.title,
+        img: product.img,
+      };
+      return map;
+    }, {});
+
+    // Combine inventory and product data
+    const inventoriesWithProductDetails = inventories.map((inventory) => {
+      return {
+        ...inventory.toObject(),
+        productDetails: productMap[inventory.productId] || {},
+      };
+    });
+
+    // Send response with enriched inventory data
+    res.status(200).json(inventoriesWithProductDetails);
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

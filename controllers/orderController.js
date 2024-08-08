@@ -3,42 +3,6 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Inventory = require("../models/Inventory");
 
-const createOrder = async (req, res) => {
-  const body = req.body;
-  try {
-    let price = 0;
-    // iterate through each product using for...of loop because we are using await
-    for (const element of body.products) {
-      // await the result of fetching product details
-      const product = await Product.findById(element.productId);
-      // add the price of the current product to the total price
-      price += product.price * element.quantity;
-      // update the inventory: reserve the quantity
-      const inventory = await Inventory.findOne({
-        productId: element.productId,
-      });
-      if (
-        inventory &&
-        inventory.stockQuantity - inventory.reservedQuantity >= element.quantity
-      ) {
-        inventory.reservedQuantity += element.quantity;
-        await inventory.save();
-      } else {
-        return res
-          .status(403)
-          .json(`Insufficient stock for product ${element.productId}`);
-      }
-    }
-    const newOrder = new Order({ ...body, amount: price });
-    const savedOrder = await newOrder.save();
-    // fulfill order (the stock will decrease and reserved will increase then decrease) if not fulfill only reserved will increase
-    fulfillOrder(savedOrder._id);
-    res.status(201).json(savedOrder);
-  } catch (err) {
-    // Handle errors
-    res.status(500).json(err);
-  }
-};
 // when payment is done (automatic) we should fulfill the order or when the 3rd party send the request for us
 const fulfillOrder = async (orderId) => {
   try {
@@ -62,6 +26,43 @@ const fulfillOrder = async (orderId) => {
     await order.save();
   } catch (err) {
     console.error("Error fulfilling order:", err);
+  }
+};
+
+const createOrder = async (req, res) => {
+  const body = req.body;
+  try {
+    let price = 0;
+    // iterate through each product using for...of loop because we are using await
+    for (const element of body.products) {
+      // await the result of fetching product details
+      const product = await Product.findById(element.productId);
+      // add the price of the current product to the total price
+      price += product.price * element.quantity;
+      // update the inventory: reserve the quantity
+      const inventory = await Inventory.findOne({
+        productId: element.productId,
+      });
+      if (
+        inventory &&
+        inventory.stockQuantity - inventory.reservedQuantity >= element.quantity
+      ) {
+        inventory.reservedQuantity += element.quantity;
+        await inventory.save();
+      } else {
+        return res.status(403).json({
+          message: `Insufficient stock for product '${element.productId}'`,
+        });
+      }
+    }
+    const newOrder = new Order({ ...body, amount: price });
+    const savedOrder = await newOrder.save();
+    // fulfill order (the stock will decrease and reserved will increase then decrease) if not fulfill only reserved will increase
+    fulfillOrder(savedOrder._id);
+    res.status(201).json(savedOrder);
+  } catch (err) {
+    // Handle errors
+    res.status(500).json(err);
   }
 };
 

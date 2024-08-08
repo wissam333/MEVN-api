@@ -128,8 +128,8 @@ const getProduct = async (req, res) => {
 const getProducts = async (req, res) => {
   try {
     const qCategory = req.query.category;
-    const page = parseInt(req.query.page) || 1; // default to page 1 if not provided
-    const pageSize = parseInt(req.query.pageSize) || 10; // default to 10 items per page if not provided
+    const page = parseInt(req.query.page); // default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize); // default to 10 items per page if not provided
 
     const skip = (page - 1) * pageSize; // calculate number of items to skip
 
@@ -182,8 +182,18 @@ const getProducts = async (req, res) => {
 };
 
 const getProductsTemp = async (req, res) => {
-  const Products = await Product.find();
-  console.log(Products);
+  try {
+    const products = await Product.find({}, { _id: 1, title: 1 });
+    const productNamesWithIds = products.map((product) => ({
+      id: product._id,
+      name: product.title,
+    }));
+    res.status(200).json(productNamesWithIds);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Error fetching product names and IDs", error: err });
+  }
 };
 
 module.exports = {
