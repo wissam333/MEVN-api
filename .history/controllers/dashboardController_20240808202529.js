@@ -150,51 +150,22 @@ const getSalesComparison = async (req, res) => {
 
     // Set the start and end dates for the previous month
     const startOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
-    const endOfPreviousMonth = new Date(
-      currentYear,
-      currentMonth,
-      0,
-      23,
-      59,
-      59
-    );
+    const endOfPreviousMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59);
 
     // Set the start and end dates for the current month
     const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-    const endOfCurrentMonth = new Date(
-      currentYear,
-      currentMonth + 1,
-      0,
-      23,
-      59,
-      59
-    );
+    const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
 
     // Fetch sales data
-    const previousMonthSales = await getDailySales(
-      startOfPreviousMonth,
-      endOfPreviousMonth
-    );
-    const currentMonthSales = await getDailySales(
-      startOfCurrentMonth,
-      endOfCurrentMonth
-    );
+    const previousMonthSales = await getDailySales(startOfPreviousMonth, endOfPreviousMonth);
+    const currentMonthSales = await getDailySales(startOfCurrentMonth, endOfCurrentMonth);
 
     // Calculate total sales for each month
-    const previousMonthTotalSales = previousMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
-    const currentMonthTotalSales = currentMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
+    const previousMonthTotalSales = previousMonthSales.reduce((total, sale) => total + sale.totalSales, 0);
+    const currentMonthTotalSales = currentMonthSales.reduce((total, sale) => total + sale.totalSales, 0);
 
     // Calculate percentage increase
-    const percentageIncrease = calculatePercentageIncrease(
-      currentMonthTotalSales,
-      previousMonthTotalSales
-    );
+    const percentageIncrease = calculatePercentageIncrease(currentMonthTotalSales, previousMonthTotalSales);
 
     // Format message
     let message;
@@ -216,17 +187,20 @@ const getSalesComparison = async (req, res) => {
   }
 };
 
+
 const getSalesDataForProduct = async (req, res) => {
   const productId = req.params.productId;
 
   try {
-    const query = {
-      "products.productId": productId,
-    };
-    // fetch data from the database
-    const orders = await Order.find(query);
+    // Fetch data from the database
+    const orders = await Order.find({ "products.productId": productId });
     const ProductFromDb = await Product.findById(productId);
-    // Calculate total revenue and total quantity sold for all, this month, and this week
+    
+    if (!ProductFromDb) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Initialize variables
     let totalRevenueAll = 0;
     let totalQuantitySoldAll = 0;
     let totalRevenueMonth = 0;
@@ -234,27 +208,26 @@ const getSalesDataForProduct = async (req, res) => {
     let totalRevenueWeek = 0;
     let totalQuantitySoldWeek = 0;
 
-    // dates
+    // Get today's date and calculate the start of the month and week
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const firstDayOfWeek = today.getDate() - today.getDay(); // Sunday
-    const lastDayOfWeek = firstDayOfWeek + 6;
+    const firstDayOfWeek = new Date(today.setDate(today.getDate() - today.getDay())); // Sunday
+    const lastDayOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6)); // Saturday
 
     orders.forEach((order) => {
+      const orderDate = new Date(order.createdAt);
+
       order.products.forEach((product) => {
         if (product.productId.toString() === productId) {
           totalRevenueAll += ProductFromDb.price * product.quantity;
           totalQuantitySoldAll += product.quantity;
 
-          if (order.createdAt >= firstDayOfMonth) {
+          if (orderDate >= firstDayOfMonth) {
             totalRevenueMonth += ProductFromDb.price * product.quantity;
             totalQuantitySoldMonth += product.quantity;
           }
 
-          if (
-            order.createdAt >= new Date(today.setDate(firstDayOfWeek)) &&
-            order.createdAt <= new Date(today.setDate(lastDayOfWeek))
-          ) {
+          if (orderDate >= firstDayOfWeek && orderDate <= lastDayOfWeek) {
             totalRevenueWeek += ProductFromDb.price * product.quantity;
             totalQuantitySoldWeek += product.quantity;
           }
@@ -278,24 +251,27 @@ const getSalesDataForProduct = async (req, res) => {
   }
 };
 
+
 const getMonthlySalesDataForProduct = async (req, res) => {
   const productId = req.params.productId;
+  
   try {
-    const query = {
-      "products.productId": productId,
-    };
-    const orders = await Order.find(query);
-    // object to store sales data for each month of the year
+    const orders = await Order.find({ "products.productId": productId });
+    
+    // Initialize monthly sales data object
     const monthlySalesData = {};
 
+    // Initialize sales data for each month
     for (let i = 1; i <= 12; i++) {
       monthlySalesData[i] = 0;
     }
 
     orders.forEach((order) => {
+      const orderDate = new Date(order.createdAt);
+      const month = orderDate.getMonth() + 1; // Months are 0-indexed in JS Date
+
       order.products.forEach((product) => {
         if (product.productId.toString() === productId) {
-          const month = new Date(order.createdAt).getMonth() + 1;
           monthlySalesData[month] += product.quantity;
         }
       });
@@ -307,6 +283,7 @@ const getMonthlySalesDataForProduct = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 module.exports = {
   getDashboardStates,

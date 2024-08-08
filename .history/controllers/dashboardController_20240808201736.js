@@ -150,51 +150,22 @@ const getSalesComparison = async (req, res) => {
 
     // Set the start and end dates for the previous month
     const startOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
-    const endOfPreviousMonth = new Date(
-      currentYear,
-      currentMonth,
-      0,
-      23,
-      59,
-      59
-    );
+    const endOfPreviousMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59);
 
     // Set the start and end dates for the current month
     const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-    const endOfCurrentMonth = new Date(
-      currentYear,
-      currentMonth + 1,
-      0,
-      23,
-      59,
-      59
-    );
+    const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
 
     // Fetch sales data
-    const previousMonthSales = await getDailySales(
-      startOfPreviousMonth,
-      endOfPreviousMonth
-    );
-    const currentMonthSales = await getDailySales(
-      startOfCurrentMonth,
-      endOfCurrentMonth
-    );
+    const previousMonthSales = await getDailySales(startOfPreviousMonth, endOfPreviousMonth);
+    const currentMonthSales = await getDailySales(startOfCurrentMonth, endOfCurrentMonth);
 
     // Calculate total sales for each month
-    const previousMonthTotalSales = previousMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
-    const currentMonthTotalSales = currentMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
+    const previousMonthTotalSales = previousMonthSales.reduce((total, sale) => total + sale.totalSales, 0);
+    const currentMonthTotalSales = currentMonthSales.reduce((total, sale) => total + sale.totalSales, 0);
 
     // Calculate percentage increase
-    const percentageIncrease = calculatePercentageIncrease(
-      currentMonthTotalSales,
-      previousMonthTotalSales
-    );
+    const percentageIncrease = calculatePercentageIncrease(currentMonthTotalSales, previousMonthTotalSales);
 
     // Format message
     let message;
@@ -215,6 +186,7 @@ const getSalesComparison = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 const getSalesDataForProduct = async (req, res) => {
   const productId = req.params.productId;

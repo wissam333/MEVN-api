@@ -181,14 +181,12 @@ const getSalesComparison = async (req, res) => {
     );
 
     // Calculate total sales for each month
-    const previousMonthTotalSales = previousMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
-    const currentMonthTotalSales = currentMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
+    const previousMonthTotalSales = previousMonthSales.length
+      ? previousMonthSales[0].totalSales
+      : 0;
+    const currentMonthTotalSales = currentMonthSales.length
+      ? currentMonthSales[0].totalSales
+      : 0;
 
     // Calculate percentage increase
     const percentageIncrease = calculatePercentageIncrease(

@@ -51,6 +51,27 @@ const getDashboardStates = async (req, res) => {
   }
 };
 
+const updateDateFields = async () => {
+  try {
+    await Order.updateMany(
+      { createdAt: { $type: "string" } }, // Match documents where createdAt is a string
+      [
+        {
+          $set: {
+            createdAt: {
+              $dateFromString: { dateString: "$createdAt" },
+            },
+          },
+        },
+      ]
+    );
+    console.log("Updated all date fields successfully");
+  } catch (err) {
+    console.error("Error updating date fields:", err);
+  }
+};
+updateDateFields();
+
 const getMonthlyIncome = async (req, res) => {
   const date = new Date();
   const lastMonth = new Date(date.setMonth(date.getMonth - 1));
@@ -135,42 +156,43 @@ const getUserStates = async (req, res) => {
 
 const calculatePercentageIncrease = (currentMonthSales, previousMonthSales) => {
   if (previousMonthSales === 0) {
-    return currentMonthSales > 0 ? "Infinity" : "0"; // Handle edge case
+    // Handle edge case: no sales in previous month
+    return currentMonthSales === 0 ? "0" : "Infinity"; // "Infinity" for any sales in the current month
   }
-  const percentageIncrease =
-    ((currentMonthSales - previousMonthSales) / previousMonthSales) * 100;
+
+  const percentageIncrease = ((currentMonthSales - previousMonthSales) / previousMonthSales) * 100;
+  
+  // Return the percentage increase as a string with one decimal place
   return `${percentageIncrease.toFixed(1)}`;
 };
+
 
 const getSalesComparison = async (req, res) => {
   try {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // Current month (0-based)
+    const currentMonth = currentDate.getMonth();
 
-    // Set the start and end dates for the previous month
-    const startOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
+    const startOfPreviousMonth = new Date(currentYear, currentMonth - 2, 1); // Start of last month
     const endOfPreviousMonth = new Date(
+      currentYear,
+      currentMonth - 1,
+      0,
+      23,
+      59,
+      59
+    ); // End of last month
+
+    const startOfCurrentMonth = new Date(currentYear, currentMonth - 1, 1); // Start of this month
+    const endOfCurrentMonth = new Date(
       currentYear,
       currentMonth,
       0,
       23,
       59,
       59
-    );
+    ); // End of this month
 
-    // Set the start and end dates for the current month
-    const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-    const endOfCurrentMonth = new Date(
-      currentYear,
-      currentMonth + 1,
-      0,
-      23,
-      59,
-      59
-    );
-
-    // Fetch sales data
     const previousMonthSales = await getDailySales(
       startOfPreviousMonth,
       endOfPreviousMonth
@@ -180,39 +202,23 @@ const getSalesComparison = async (req, res) => {
       endOfCurrentMonth
     );
 
-    // Calculate total sales for each month
-    const previousMonthTotalSales = previousMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
-    const currentMonthTotalSales = currentMonthSales.reduce(
-      (total, sale) => total + sale.totalSales,
-      0
-    );
-
     // Calculate percentage increase
     const percentageIncrease = calculatePercentageIncrease(
-      currentMonthTotalSales,
-      previousMonthTotalSales
+      currentMonthSales.length ? currentMonthSales[0].totalSales : 0,
+      previousMonthSales.length ? previousMonthSales[0].totalSales : 0
     );
-
     // Format message
     let message;
-    if (percentageIncrease === "Infinity") {
-      message = "Sales increased dramatically compared to the previous month.";
-    } else if (percentageIncrease === "0") {
-      message = "Sales remained the same compared to the previous month.";
-    } else if (parseFloat(percentageIncrease) > 0) {
+    if (percentageIncrease > 0) {
       message = `You have achieved a ${percentageIncrease}% increase in sales this month.`;
     } else {
-      message = `You have experienced a ${percentageIncrease}% decrease in sales this month.`;
+      message = `You have experienced a decrease of ${percentageIncrease}% in sales this month`;
     }
 
     // Send response
     res.status(200).json({ message });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500);
   }
 };
 
