@@ -44,8 +44,8 @@ const createOrder = async (req, res) => {
       const inventory = await Inventory.findOne({
         productId: element.productId,
       });
-      console.log("inventory :" + inventory);
-
+      console.log("inventory :" + inventory)
+      console.log("product :" + product)
       if (
         inventory &&
         inventory.stockQuantity - inventory.reservedQuantity >= element.quantity

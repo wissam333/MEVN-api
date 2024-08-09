@@ -42,7 +42,7 @@ const createOrder = async (req, res) => {
       // update the inventory: reserve the quantity
 
       const inventory = await Inventory.findOne({
-        productId: element.productId,
+        productId: element.productId.toString(),
       });
       console.log("inventory :" + inventory);
 

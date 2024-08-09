@@ -40,12 +40,11 @@ const createOrder = async (req, res) => {
       // add the price of the current product to the total price
       price += product.price * element.quantity;
       // update the inventory: reserve the quantity
-
       const inventory = await Inventory.findOne({
         productId: element.productId,
       });
-      console.log("inventory :" + inventory);
-
+      console.log("inventory :" + inventory)
+      console.log("inventory.stockQuantity - inventory.reservedQuantity >= element.quantity :" + inventory.stockQuantity - inventory.reservedQuantity >= element.quantity)
       if (
         inventory &&
         inventory.stockQuantity - inventory.reservedQuantity >= element.quantity
